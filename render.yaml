@@ -1,0 +1,6 @@
+services:
+  - type: web
+    name: devfest-mcp-loan-demo
+    runtime: static
+    buildCommand: echo "static site, nothing to build"
+    staticPublishPath: .
