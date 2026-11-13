@@ -1,0 +1,1048 @@
+<!DOCTYPE html>
+<html lang="en" class="h-full bg-slate-950 text-slate-100 font-sans">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DevFest Banjul 2026 - MCP Multi-Agent Loan System</title>
+    <!-- Pinned CDN versions. For fully offline use, save these two scripts next to this file and change the src paths. -->
+    <script src="https://cdn.tailwindcss.com/3.4.17"></script>
+    <script src="https://unpkg.com/lucide@0.469.0/dist/umd/lucide.min.js"></script>
+    <script>
+        tailwind.config = {
+            theme: { extend: { colors: { gdg: { blue: '#4285F4', red: '#EA4335', yellow: '#FBBC04', green: '#34A853', dark: '#0f172a' } } } }
+        }
+    </script>
+    <style>
+        .custom-scrollbar::-webkit-scrollbar { width: 6px; height: 6px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: #0f172a; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: #334155; border-radius: 3px; }
+        .agent-node { transition: all 0.3s ease; cursor: pointer; }
+        .agent-node:hover { border-color: #4285F4; }
+    </style>
+</head>
+<body class="h-full flex flex-col bg-slate-950 overflow-x-hidden text-slate-100">
+
+    <!-- HEADER -->
+    <header class="bg-slate-900 border-b border-slate-800 sticky top-0 z-40 px-4 py-3 flex flex-wrap items-center justify-between shadow-xl">
+        <div class="flex items-center space-x-3">
+            <div class="flex space-x-1">
+                <span class="w-3 h-3 rounded-full bg-gdg-blue inline-block"></span>
+                <span class="w-3 h-3 rounded-full bg-gdg-red inline-block"></span>
+                <span class="w-3 h-3 rounded-full bg-gdg-yellow inline-block"></span>
+                <span class="w-3 h-3 rounded-full bg-gdg-green inline-block"></span>
+            </div>
+            <div>
+                <div class="flex items-center space-x-2">
+                    <h1 class="font-bold text-lg tracking-tight text-slate-100">DevFest Banjul 2026</h1>
+                    <span class="bg-amber-500/20 text-amber-300 border border-amber-500/40 text-xs px-2 py-0.5 rounded-full font-mono">Simulated demo</span>
+                </div>
+                <p class="text-xs text-slate-400">Build, Secure, Scale: Shipping a Multi-Agent Loan System with MCP in The Gambia</p>
+            </div>
+        </div>
+
+        <div class="flex items-center space-x-3 mt-2 sm:mt-0 flex-wrap gap-2">
+            <div class="flex items-center bg-slate-950 border border-slate-800 rounded-lg px-2 py-1 text-xs" title="Approximate display rates">
+                <span class="text-slate-500 mr-1.5 font-mono">FX:</span>
+                <select id="currency-select" onchange="changeCurrency(this.value)" class="bg-slate-950 text-amber-400 font-mono font-semibold focus:outline-none cursor-pointer">
+                    <option value="GMD" selected>GMD (Dalasi)</option>
+                    <option value="USD">USD ($)</option>
+                    <option value="EUR">EUR (€)</option>
+                </select>
+            </div>
+
+            <div class="flex items-center bg-slate-950 border border-slate-800 rounded-lg px-2 py-1 text-xs">
+                <span class="text-slate-500 mr-1.5 font-mono">Chaos:</span>
+                <select id="chaos-select" class="bg-slate-950 text-purple-400 font-mono focus:outline-none cursor-pointer">
+                    <option value="normal" selected>Normal Operation</option>
+                    <option value="timeout_cbg">Simulate CBG Timeout</option>
+                    <option value="fraud_giaba">Simulate GIABA AML Flag</option>
+                </select>
+            </div>
+
+            <button onclick="switchTab('add-applicant')" class="bg-gdg-blue hover:bg-blue-600 text-white text-xs px-3.5 py-2 rounded-lg font-medium flex items-center space-x-2 transition shadow-lg shadow-blue-500/20">
+                <i data-lucide="user-plus" class="w-4 h-4"></i><span>Add Applicant</span>
+            </button>
+            <button onclick="resetDemo()" class="bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs px-3 py-2 rounded-lg font-medium border border-slate-700 flex items-center space-x-1.5 transition">
+                <i data-lucide="rotate-ccw" class="w-3.5 h-3.5"></i><span>Reset</span>
+            </button>
+        </div>
+    </header>
+
+    <!-- SUB-BAR -->
+    <div class="bg-slate-900/60 border-b border-slate-800/80 px-4 py-2 flex flex-wrap items-center justify-between text-xs text-slate-400 gap-2">
+        <div class="flex items-center space-x-4 flex-wrap gap-y-1">
+            <span class="flex items-center space-x-1.5">
+                <span class="w-2 h-2 rounded-full bg-amber-400 animate-pulse"></span>
+                <span class="text-slate-300">MCP servers: <strong class="text-amber-300 font-mono">SIMULATED</strong></span>
+            </span>
+            <span class="hidden md:inline text-slate-700">|</span>
+            <span>Policy: <strong class="text-blue-400">demo rules</strong> (debt-to-income under 25% low, under 55% medium)</span>
+        </div>
+        <div class="flex items-center space-x-3 font-mono text-slate-400">
+            <span>Transport: <span class="text-indigo-400">JSON-RPC / SSE</span></span>
+            <span>Security: <span class="text-purple-400">scoped tokens (illustrative)</span></span>
+        </div>
+    </div>
+
+    <!-- MAIN -->
+    <main class="flex-1 max-w-7xl w-full mx-auto p-4 md:p-6 grid grid-cols-1 lg:grid-cols-12 gap-6">
+
+        <!-- LEFT -->
+        <div class="lg:col-span-4 flex flex-col space-y-6">
+
+            <div class="bg-slate-900 border border-slate-800 rounded-xl p-1.5 flex space-x-1 text-xs">
+                <button id="tab-btn-applicants" onclick="switchTab('applicants')" class="flex-1 py-2 px-3 rounded-lg font-medium transition flex items-center justify-center space-x-2 bg-slate-800 text-white shadow">
+                    <i data-lucide="users" class="w-4 h-4 text-gdg-blue"></i><span>Applicants</span>
+                </button>
+                <button id="tab-btn-add-applicant" onclick="switchTab('add-applicant')" class="flex-1 py-2 px-3 rounded-lg font-medium transition flex items-center justify-center space-x-2 text-slate-400 hover:text-white hover:bg-slate-800/50">
+                    <i data-lucide="user-plus" class="w-4 h-4 text-gdg-green"></i><span>Add New</span>
+                </button>
+                <button id="tab-btn-mcp-tools" onclick="switchTab('mcp-tools')" class="flex-1 py-2 px-3 rounded-lg font-medium transition flex items-center justify-center space-x-2 text-slate-400 hover:text-white hover:bg-slate-800/50">
+                    <i data-lucide="server" class="w-4 h-4 text-gdg-yellow"></i><span>MCP Registry</span>
+                </button>
+            </div>
+
+            <!-- Applicants -->
+            <div id="view-applicants" class="space-y-4">
+                <div class="flex items-center justify-between">
+                    <h2 class="text-sm font-semibold uppercase tracking-wider text-slate-400 flex items-center space-x-2">
+                        <i data-lucide="folder-user" class="w-4 h-4 text-gdg-blue"></i><span>Select Loan Applicant</span>
+                    </h2>
+                    <span id="applicant-count-badge" class="text-xs bg-slate-800 text-slate-400 px-2 py-0.5 rounded-full font-mono">3 Applicants</span>
+                </div>
+                <div id="preset-list" class="space-y-3"></div>
+            </div>
+
+            <!-- Add applicant -->
+            <div id="view-add-applicant" class="hidden bg-slate-900 border border-slate-800 rounded-xl p-4 space-y-4 shadow-xl">
+                <div class="border-b border-slate-800 pb-3">
+                    <h3 class="font-semibold text-slate-200 text-sm flex items-center space-x-2">
+                        <i data-lucide="user-check" class="w-4 h-4 text-gdg-green"></i><span>Create Custom Loan Applicant</span>
+                    </h3>
+                    <p class="text-xs text-slate-400 mt-0.5">Test a custom profile against the agent swarm</p>
+                </div>
+                <form id="add-applicant-form" onsubmit="handleCustomApplicantSubmit(event)" class="space-y-3 text-xs">
+                    <div>
+                        <label class="block text-slate-400 mb-1 font-medium">Full Name</label>
+                        <input type="text" id="app-name" required placeholder="e.g. Ousman Touray" class="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-slate-200 focus:outline-none focus:border-gdg-blue transition">
+                    </div>
+                    <div class="grid grid-cols-2 gap-3">
+                        <div>
+                            <label class="block text-slate-400 mb-1 font-medium">National ID (NIN)</label>
+                            <input type="text" id="app-nin" required placeholder="NIN-2026-XXXX" class="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-slate-200 font-mono focus:outline-none focus:border-gdg-blue transition">
+                        </div>
+                        <div>
+                            <label class="block text-slate-400 mb-1 font-medium">Region / Location</label>
+                            <select id="app-location" class="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-slate-200 focus:outline-none focus:border-gdg-blue transition">
+                                <option value="Banjul">Banjul Commercial</option>
+                                <option value="Serrekunda">Serrekunda Market</option>
+                                <option value="Brikama">Brikama Agritech</option>
+                                <option value="Bakau">Bakau Services</option>
+                                <option value="Farafenni">Farafenni Trade</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="grid grid-cols-2 gap-3">
+                        <div>
+                            <label class="block text-slate-400 mb-1 font-medium">Requested Loan (GMD)</label>
+                            <input type="number" id="app-amount" required placeholder="250000" min="10000" class="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-amber-400 font-mono font-semibold focus:outline-none focus:border-gdg-blue transition">
+                        </div>
+                        <div>
+                            <label class="block text-slate-400 mb-1 font-medium">Annual Cashflow (GMD)</label>
+                            <input type="number" id="app-income" required placeholder="600000" min="20000" class="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-emerald-400 font-mono font-semibold focus:outline-none focus:border-gdg-blue transition">
+                        </div>
+                    </div>
+                    <div class="grid grid-cols-2 gap-3">
+                        <div>
+                            <label class="block text-slate-400 mb-1 font-medium">Existing Debt (GMD)</label>
+                            <input type="number" id="app-debt" required placeholder="0" min="0" class="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-slate-200 font-mono focus:outline-none focus:border-gdg-blue transition">
+                        </div>
+                        <div>
+                            <label class="block text-slate-400 mb-1 font-medium">Collateral Type</label>
+                            <select id="app-collateral-type" class="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-slate-200 focus:outline-none focus:border-gdg-blue transition">
+                                <option value="Land Title Deed (Kombo North)">Land Title Deed</option>
+                                <option value="Commercial Vehicle Inventory">Commercial Fleet/Vehicle</option>
+                                <option value="Agricultural Store Inventory">Agricultural Store Stock</option>
+                                <option value="Unsecured / Cashflow Only">Unsecured (No Collateral)</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div>
+                        <label class="block text-slate-400 mb-1 font-medium">Business Sector</label>
+                        <input type="text" id="app-business" required placeholder="e.g. Solar Energy Dist." class="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-slate-200 focus:outline-none focus:border-gdg-blue transition">
+                    </div>
+                    <div class="pt-2 flex space-x-2">
+                        <button type="submit" class="flex-1 bg-gdg-green hover:bg-emerald-600 text-white font-medium py-2.5 rounded-lg flex items-center justify-center space-x-2 transition shadow-lg shadow-emerald-500/20">
+                            <i data-lucide="play-circle" class="w-4 h-4"></i><span>Save &amp; Run Swarm</span>
+                        </button>
+                        <button type="button" onclick="switchTab('applicants')" class="px-3 py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg transition">Cancel</button>
+                    </div>
+                </form>
+            </div>
+
+            <!-- MCP registry -->
+            <div id="view-mcp-tools" class="hidden space-y-4">
+                <div class="flex items-center justify-between">
+                    <h2 class="text-sm font-semibold uppercase tracking-wider text-slate-400 flex items-center space-x-2">
+                        <i data-lucide="cpu" class="w-4 h-4 text-gdg-yellow"></i><span>MCP Servers (simulated)</span>
+                    </h2>
+                    <span class="text-xs bg-slate-800 text-amber-400 px-2 py-0.5 rounded-full font-mono">4 Servers</span>
+                </div>
+                <div class="space-y-3 text-xs">
+                    <div class="bg-slate-900 border border-slate-800 rounded-xl p-3 space-y-2">
+                        <div class="flex items-center justify-between"><span class="font-mono text-slate-200 font-bold">mcp-server-gambia-cpr</span><span class="text-emerald-400 text-[10px]">stdio</span></div>
+                        <p class="text-slate-400 text-[11px]">National ID and tax number verification</p>
+                    </div>
+                    <div class="bg-slate-900 border border-slate-800 rounded-xl p-3 space-y-2">
+                        <div class="flex items-center justify-between"><span class="font-mono text-slate-200 font-bold">mcp-server-cbg-credit</span><span class="text-emerald-400 text-[10px]">https</span></div>
+                        <p class="text-slate-400 text-[11px]">Credit bureau and debt-to-income check</p>
+                    </div>
+                    <div class="bg-slate-900 border border-slate-800 rounded-xl p-3 space-y-2">
+                        <div class="flex items-center justify-between"><span class="font-mono text-slate-200 font-bold">mcp-server-land-registry</span><span class="text-emerald-400 text-[10px]">stdio</span></div>
+                        <p class="text-slate-400 text-[11px]">Land title deed and collateral assessment</p>
+                    </div>
+                    <div class="bg-slate-900 border border-slate-800 rounded-xl p-3 space-y-2">
+                        <div class="flex items-center justify-between"><span class="font-mono text-slate-200 font-bold">mcp-server-giaba-aml</span><span class="text-emerald-400 text-[10px]">https</span></div>
+                        <p class="text-slate-400 text-[11px]">PEP and sanctions AML screening</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Summary card -->
+            <div id="applicant-summary-card" class="bg-slate-900 border border-slate-800 rounded-xl p-4 space-y-3">
+                <div class="flex items-center justify-between border-b border-slate-800 pb-2">
+                    <span class="text-xs text-slate-400 font-semibold uppercase tracking-wider">Active Evaluation Subject</span>
+                    <span id="selected-badge" class="text-[10px] bg-blue-500/20 text-blue-300 border border-blue-500/30 px-2 py-0.5 rounded-full font-mono">Ready</span>
+                </div>
+                <div id="selected-details" class="space-y-2 text-xs"></div>
+                <button id="run-pipeline-btn" onclick="startMcpPipeline()" class="w-full mt-2 bg-gradient-to-r from-gdg-blue to-indigo-600 hover:from-blue-600 hover:to-indigo-700 disabled:opacity-50 text-white font-medium py-2.5 rounded-lg flex items-center justify-center space-x-2 transition shadow-lg shadow-blue-500/20">
+                    <i data-lucide="play" class="w-4 h-4"></i><span>Execute Multi-Agent Evaluation</span>
+                </button>
+            </div>
+        </div>
+
+        <!-- RIGHT -->
+        <div class="lg:col-span-8 flex flex-col space-y-6">
+
+            <div class="bg-slate-900 border border-slate-800 rounded-xl p-5 space-y-4">
+                <div class="flex items-center justify-between flex-wrap gap-2">
+                    <div>
+                        <h2 class="text-base font-semibold text-slate-100 flex items-center space-x-2">
+                            <i data-lucide="network" class="w-5 h-5 text-gdg-blue"></i><span>Multi-Agent Orchestrator</span>
+                        </h2>
+                        <p class="text-xs text-slate-400">Click an agent to inspect its MCP tool schema and the last call it made</p>
+                    </div>
+                    <div class="flex items-center space-x-2 text-xs bg-slate-950 border border-slate-800 px-3 py-1.5 rounded-lg font-mono">
+                        <span class="w-2 h-2 rounded-full bg-slate-500" id="status-indicator-dot"></span>
+                        <span id="status-text" class="text-slate-400">Status: IDLE</span>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3.5 pt-2">
+                    <div id="agent-node-kyc" onclick="openAgentInspector('kyc')" class="agent-node bg-slate-950 border border-slate-800 rounded-xl p-3.5 space-y-2">
+                        <div class="flex items-center justify-between">
+                            <div class="flex items-center space-x-2">
+                                <div class="w-7 h-7 rounded-lg bg-blue-500/10 border border-blue-500/30 flex items-center justify-center text-blue-400 font-bold text-xs">A1</div>
+                                <div><h4 class="text-xs font-semibold text-slate-200">KYC &amp; Identity Agent</h4><p class="text-[10px] text-slate-400">mcp-server-gambia-cpr</p></div>
+                            </div>
+                            <span id="agent-status-kyc" class="text-[10px] px-2 py-0.5 rounded-full bg-slate-800 text-slate-400 font-mono">Standby</span>
+                        </div>
+                        <div class="text-[11px] text-slate-400">Verifies the National ID and tax number.</div>
+                        <div class="pt-1 text-[10px] font-mono text-slate-500 flex justify-between border-t border-slate-900"><span>Tool: verify_nin_and_tin</span><span id="agent-time-kyc">--</span></div>
+                    </div>
+                    <div id="agent-node-credit" onclick="openAgentInspector('credit')" class="agent-node bg-slate-950 border border-slate-800 rounded-xl p-3.5 space-y-2">
+                        <div class="flex items-center justify-between">
+                            <div class="flex items-center space-x-2">
+                                <div class="w-7 h-7 rounded-lg bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center text-emerald-400 font-bold text-xs">A2</div>
+                                <div><h4 class="text-xs font-semibold text-slate-200">Credit Risk Agent</h4><p class="text-[10px] text-slate-400">mcp-server-cbg-credit</p></div>
+                            </div>
+                            <span id="agent-status-credit" class="text-[10px] px-2 py-0.5 rounded-full bg-slate-800 text-slate-400 font-mono">Standby</span>
+                        </div>
+                        <div class="text-[11px] text-slate-400">Computes debt-to-income and a risk label.</div>
+                        <div class="pt-1 text-[10px] font-mono text-slate-500 flex justify-between border-t border-slate-900"><span>Tool: query_interbank_defaults</span><span id="agent-time-credit">--</span></div>
+                    </div>
+                    <div id="agent-node-collateral" onclick="openAgentInspector('collateral')" class="agent-node bg-slate-950 border border-slate-800 rounded-xl p-3.5 space-y-2">
+                        <div class="flex items-center justify-between">
+                            <div class="flex items-center space-x-2">
+                                <div class="w-7 h-7 rounded-lg bg-amber-500/10 border border-amber-500/30 flex items-center justify-center text-amber-400 font-bold text-xs">A3</div>
+                                <div><h4 class="text-xs font-semibold text-slate-200">Collateral Assessor</h4><p class="text-[10px] text-slate-400">mcp-server-land-registry</p></div>
+                            </div>
+                            <span id="agent-status-collateral" class="text-[10px] px-2 py-0.5 rounded-full bg-slate-800 text-slate-400 font-mono">Standby</span>
+                        </div>
+                        <div class="text-[11px] text-slate-400">Validates the collateral offered.</div>
+                        <div class="pt-1 text-[10px] font-mono text-slate-500 flex justify-between border-t border-slate-900"><span>Tool: assess_land_deed</span><span id="agent-time-collateral">--</span></div>
+                    </div>
+                    <div id="agent-node-fraud" onclick="openAgentInspector('fraud')" class="agent-node bg-slate-950 border border-slate-800 rounded-xl p-3.5 space-y-2">
+                        <div class="flex items-center justify-between">
+                            <div class="flex items-center space-x-2">
+                                <div class="w-7 h-7 rounded-lg bg-purple-500/10 border border-purple-500/30 flex items-center justify-center text-purple-400 font-bold text-xs">A4</div>
+                                <div><h4 class="text-xs font-semibold text-slate-200">AML &amp; Compliance Agent</h4><p class="text-[10px] text-slate-400">mcp-server-giaba-aml</p></div>
+                            </div>
+                            <span id="agent-status-fraud" class="text-[10px] px-2 py-0.5 rounded-full bg-slate-800 text-slate-400 font-mono">Standby</span>
+                        </div>
+                        <div class="text-[11px] text-slate-400">Screens PEP lists and sanctions.</div>
+                        <div class="pt-1 text-[10px] font-mono text-slate-500 flex justify-between border-t border-slate-900"><span>Tool: screen_pep_and_sanctions</span><span id="agent-time-fraud">--</span></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Results -->
+            <div class="bg-slate-900 border border-slate-800 rounded-xl overflow-hidden shadow-2xl flex flex-col flex-1">
+                <div class="bg-slate-950 px-4 py-2.5 border-b border-slate-800 flex items-center justify-between flex-wrap gap-2">
+                    <div class="flex space-x-2 flex-wrap gap-y-1">
+                        <button id="view-tab-decision" onclick="switchResultTab('decision')" class="text-xs px-3 py-1.5 rounded-md font-medium bg-slate-800 text-white flex items-center space-x-1.5 transition">
+                            <i data-lucide="award" class="w-3.5 h-3.5 text-gdg-green"></i><span>Underwriting Decision</span>
+                        </button>
+                        <button id="view-tab-mcp-logs" onclick="switchResultTab('mcp-logs')" class="text-xs px-3 py-1.5 rounded-md font-medium text-slate-400 hover:text-white hover:bg-slate-800/50 flex items-center space-x-1.5 transition">
+                            <i data-lucide="terminal" class="w-3.5 h-3.5 text-gdg-blue"></i><span>MCP JSON-RPC Console</span>
+                        </button>
+                        <button id="view-tab-security" onclick="switchResultTab('security')" class="text-xs px-3 py-1.5 rounded-md font-medium text-slate-400 hover:text-white hover:bg-slate-800/50 flex items-center space-x-1.5 transition">
+                            <i data-lucide="shield-check" class="w-3.5 h-3.5 text-purple-400"></i><span>Security &amp; Export</span>
+                        </button>
+                        <button id="view-tab-server" onclick="switchResultTab('server')" class="text-xs px-3 py-1.5 rounded-md font-medium text-slate-400 hover:text-white hover:bg-slate-800/50 flex items-center space-x-1.5 transition">
+                            <i data-lucide="file-code" class="w-3.5 h-3.5 text-gdg-yellow"></i><span>server.py</span>
+                        </button>
+                    </div>
+                    <button onclick="clearConsoleLogs()" class="text-[11px] text-slate-400 hover:text-slate-200 px-2 py-1 rounded bg-slate-900 border border-slate-800 flex items-center space-x-1">
+                        <i data-lucide="trash-2" class="w-3 h-3"></i><span>Clear Logs</span>
+                    </button>
+                </div>
+
+                <!-- Decision -->
+                <div id="panel-decision" class="p-5 space-y-4">
+                    <div id="decision-placeholder" class="py-12 flex flex-col items-center justify-center text-center space-y-3">
+                        <div class="w-12 h-12 rounded-full bg-slate-800/80 flex items-center justify-center text-slate-500"><i data-lucide="play" class="w-6 h-6"></i></div>
+                        <div>
+                            <h3 class="text-slate-300 font-medium text-sm">No Active Evaluation Run</h3>
+                            <p class="text-xs text-slate-500 max-w-sm mt-1">Select an applicant or add a custom one, then click "Execute Multi-Agent Evaluation".</p>
+                        </div>
+                    </div>
+
+                    <div id="decision-results" class="hidden space-y-4">
+                        <div id="decision-banner" class="p-4 rounded-xl border flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                            <div class="flex items-center space-x-3">
+                                <div id="decision-icon-wrapper" class="w-12 h-12 rounded-xl flex items-center justify-center shrink-0"></div>
+                                <div>
+                                    <div class="flex items-center space-x-2 flex-wrap gap-y-1">
+                                        <h3 id="decision-title" class="text-base font-bold">--</h3>
+                                        <span id="decision-risk-tag" class="text-xs px-2.5 py-0.5 rounded-full font-mono">--</span>
+                                    </div>
+                                    <p id="decision-subtitle" class="text-xs mt-0.5 opacity-90">--</p>
+                                </div>
+                            </div>
+                            <div class="text-right sm:border-l sm:border-slate-800/60 sm:pl-4 w-full sm:w-auto flex justify-between sm:block">
+                                <div class="text-[11px] text-slate-400 uppercase font-semibold">Recommended Cap</div>
+                                <div id="decision-recommended-amount" class="text-lg font-bold font-mono text-amber-400">0 GMD</div>
+                            </div>
+                        </div>
+
+                        <div class="bg-slate-950 border border-slate-800 rounded-xl p-3 flex items-center justify-between text-xs gap-3">
+                            <div class="flex items-center space-x-2 shrink-0">
+                                <i data-lucide="message-square-text" class="w-4 h-4 text-gdg-yellow"></i>
+                                <span class="text-slate-400">Plain-language summary:</span>
+                            </div>
+                            <div id="plain-summary-text" class="font-medium text-amber-300 text-right">--</div>
+                        </div>
+
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-3 pt-2">
+                            <div class="bg-slate-950 border border-slate-800 rounded-xl p-3.5 space-y-2">
+                                <div class="flex items-center justify-between border-b border-slate-900 pb-2">
+                                    <span class="text-xs font-semibold text-slate-300">Identity &amp; Tax ID</span>
+                                    <span id="res-kyc-status" class="text-[10px] font-mono px-2 py-0.5 rounded">--</span>
+                                </div>
+                                <p id="res-kyc-desc" class="text-xs text-slate-400">--</p>
+                            </div>
+                            <div class="bg-slate-950 border border-slate-800 rounded-xl p-3.5 space-y-2">
+                                <div class="flex items-center justify-between border-b border-slate-900 pb-2">
+                                    <span class="text-xs font-semibold text-slate-300">Credit Risk</span>
+                                    <span id="res-credit-status" class="text-[10px] font-mono px-2 py-0.5 rounded">--</span>
+                                </div>
+                                <p id="res-credit-desc" class="text-xs text-slate-400">--</p>
+                            </div>
+                            <div class="bg-slate-950 border border-slate-800 rounded-xl p-3.5 space-y-2">
+                                <div class="flex items-center justify-between border-b border-slate-900 pb-2">
+                                    <span class="text-xs font-semibold text-slate-300">Collateral</span>
+                                    <span id="res-collateral-status" class="text-[10px] font-mono px-2 py-0.5 rounded">--</span>
+                                </div>
+                                <p id="res-collateral-desc" class="text-xs text-slate-400">--</p>
+                            </div>
+                            <div class="bg-slate-950 border border-slate-800 rounded-xl p-3.5 space-y-2">
+                                <div class="flex items-center justify-between border-b border-slate-900 pb-2">
+                                    <span class="text-xs font-semibold text-slate-300">AML Screening</span>
+                                    <span id="res-fraud-status" class="text-[10px] font-mono px-2 py-0.5 rounded">--</span>
+                                </div>
+                                <p id="res-fraud-desc" class="text-xs text-slate-400">--</p>
+                            </div>
+                        </div>
+
+                        <div class="bg-slate-950 border border-slate-800 rounded-xl p-4 space-y-2">
+                            <h4 class="text-xs font-semibold text-slate-300 flex items-center space-x-1.5">
+                                <i data-lucide="cpu" class="w-3.5 h-3.5 text-gdg-blue"></i><span>Multi-Agent Synthesis</span>
+                            </h4>
+                            <p id="res-synthesis-text" class="text-xs text-slate-400 leading-relaxed">--</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Logs -->
+                <div id="panel-mcp-logs" class="hidden p-4 flex-1 flex flex-col bg-slate-950 font-mono text-xs overflow-hidden">
+                    <div class="text-slate-500 text-[11px] mb-2 flex items-center justify-between border-b border-slate-900 pb-2">
+                        <span>// MCP JSON-RPC console (simulated)</span><span>Transport: stdio / SSE</span>
+                    </div>
+                    <div id="mcp-terminal-output" class="flex-1 overflow-y-auto custom-scrollbar space-y-2 max-h-[380px] p-2 bg-slate-950 rounded text-slate-300">
+                        <div class="text-slate-600">// Waiting for pipeline execution...</div>
+                    </div>
+                </div>
+
+                <!-- Security -->
+                <div id="panel-security" class="hidden p-4 space-y-4 text-xs">
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                        <div class="bg-slate-950 p-4 rounded-xl border border-slate-800 space-y-3">
+                            <h4 class="font-semibold text-slate-200 flex items-center space-x-2"><i data-lucide="download" class="w-4 h-4 text-gdg-blue"></i><span>Client Config Example</span></h4>
+                            <p class="text-slate-400 text-[11px]">Copy an example MCP client config that launches the workshop server.</p>
+                            <button onclick="copyMcpConfig()" class="w-full bg-slate-900 hover:bg-slate-800 border border-slate-700 text-slate-200 font-mono py-2 rounded-lg flex items-center justify-center space-x-2 transition">
+                                <i data-lucide="copy" class="w-3.5 h-3.5 text-gdg-yellow"></i><span>Copy mcp_config.json</span>
+                            </button>
+                        </div>
+                        <div class="bg-slate-950 p-4 rounded-xl border border-slate-800 space-y-3">
+                            <h4 class="font-semibold text-slate-200 flex items-center space-x-2"><i data-lucide="file-text" class="w-4 h-4 text-emerald-400"></i><span>Demo Audit Record</span></h4>
+                            <p class="text-slate-400 text-[11px]">Download this run as JSON, sealed with a SHA-256 hash of its contents. A demo record, not a regulatory certificate.</p>
+                            <button onclick="downloadAuditRecord()" class="w-full bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/30 text-emerald-300 font-mono py-2 rounded-lg flex items-center justify-center space-x-2 transition">
+                                <i data-lucide="download" class="w-3.5 h-3.5"></i><span>Export Demo Audit JSON</span>
+                            </button>
+                        </div>
+                    </div>
+                    <div class="bg-slate-950 border border-slate-800 rounded-xl p-4 space-y-3">
+                        <h4 class="font-semibold text-slate-200 flex items-center space-x-2"><i data-lucide="lock" class="w-4 h-4 text-purple-400"></i><span>Scoped Token Claims (illustrative)</span></h4>
+                        <div class="bg-slate-900 p-3 rounded-lg font-mono text-[11px] text-purple-300 overflow-x-auto">
+                            <div>{</div>
+                            <div class="pl-4"><span class="text-slate-400">"iss":</span> "demo-mcp-gateway",</div>
+                            <div class="pl-4"><span class="text-slate-400">"scopes":</span> ["tool:read", "tool:call:verify_nin_and_tin", "tool:call:assess_land_deed"],</div>
+                            <div class="pl-4"><span class="text-slate-400">"sha256_seal":</span> "<span id="audit-sha-hash" class="break-all">run an evaluation to generate</span>"</div>
+                            <div>}</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- server.py -->
+                <div id="panel-server" class="hidden p-4 space-y-3 text-xs">
+                    <div class="flex items-center justify-between flex-wrap gap-2">
+                        <div>
+                            <h4 class="font-semibold text-slate-200">server.py</h4>
+                            <p class="text-slate-400 text-[11px]">One MCP server with the four agent tools. Demo data only.</p>
+                        </div>
+                        <div class="flex space-x-2">
+                            <button onclick="copyServerCode()" class="bg-slate-900 hover:bg-slate-800 border border-slate-700 text-slate-200 font-mono px-3 py-1.5 rounded-lg flex items-center space-x-1.5 transition"><i data-lucide="copy" class="w-3.5 h-3.5 text-gdg-yellow"></i><span>Copy</span></button>
+                            <button onclick="downloadServerCode()" class="bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/30 text-emerald-300 font-mono px-3 py-1.5 rounded-lg flex items-center space-x-1.5 transition"><i data-lucide="download" class="w-3.5 h-3.5"></i><span>Download</span></button>
+                        </div>
+                    </div>
+                    <div class="bg-slate-950 border border-slate-800 rounded-lg p-2.5 font-mono text-[11px] text-slate-300">
+                        pip install "mcp[cli]&lt;2"<br>mcp dev server.py
+                    </div>
+                    <pre id="server-code-view" class="bg-slate-950 border border-slate-800 rounded-lg p-3 font-mono text-[11px] text-amber-300 overflow-auto custom-scrollbar max-h-[420px]"></pre>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- AGENT INSPECTOR MODAL -->
+    <div id="agent-inspector-modal" class="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+        <div class="bg-slate-900 border border-slate-800 rounded-2xl max-w-lg w-full p-5 space-y-4 shadow-2xl">
+            <div class="flex items-center justify-between border-b border-slate-800 pb-3">
+                <div>
+                    <h3 id="modal-agent-title" class="font-bold text-slate-200 text-sm">Agent Details</h3>
+                    <p id="modal-agent-server" class="text-[11px] text-slate-400 font-mono">--</p>
+                </div>
+                <button onclick="closeAgentInspector()" class="text-slate-400 hover:text-slate-200"><i data-lucide="x" class="w-5 h-5"></i></button>
+            </div>
+            <div class="space-y-3 text-xs">
+                <div>
+                    <span class="text-slate-400 font-medium block mb-1">MCP tool schema (tools/list):</span>
+                    <div id="modal-agent-schema" class="bg-slate-950 p-2.5 rounded border border-slate-800 font-mono text-[11px] text-amber-300 break-all"></div>
+                </div>
+                <div>
+                    <span class="text-slate-400 font-medium block mb-1">Latest tools/call arguments:</span>
+                    <pre id="modal-agent-payload" class="bg-slate-950 p-2.5 rounded border border-slate-800 font-mono text-[11px] text-blue-300 max-h-36 overflow-y-auto"></pre>
+                </div>
+            </div>
+            <div class="pt-2 flex justify-end">
+                <button onclick="closeAgentInspector()" class="bg-slate-800 hover:bg-slate-700 text-slate-200 px-4 py-2 rounded-lg font-medium transition">Close Inspector</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- HUMAN-IN-THE-LOOP MODAL -->
+    <div id="hitl-modal" class="fixed inset-0 bg-slate-950/85 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+        <div class="bg-slate-900 border border-amber-500/50 rounded-2xl max-w-md w-full p-6 space-y-4 shadow-2xl">
+            <div class="flex items-center space-x-3 text-amber-400">
+                <i data-lucide="shield-alert" class="w-6 h-6"></i>
+                <h3 class="font-bold text-base text-slate-100">Human-in-the-Loop Review</h3>
+            </div>
+            <p class="text-xs text-slate-300 leading-relaxed">
+                The agents flagged this application as <strong class="text-amber-400">Medium Risk</strong> because of an elevated debt-to-income ratio. Under the demo policy, a human underwriter must decide.
+            </p>
+            <div class="bg-slate-950 p-3 rounded-xl border border-slate-800 font-mono text-xs space-y-1 text-slate-300">
+                <div>Applicant: <span id="hitl-app-name" class="text-white font-bold">--</span></div>
+                <div>Requested loan: <span id="hitl-app-amount" class="text-amber-400">--</span></div>
+                <div>Debt-to-income: <span id="hitl-app-dti" class="text-amber-400">--</span></div>
+            </div>
+            <div class="flex space-x-3 pt-2">
+                <button onclick="resolveHitl(true)" class="flex-1 bg-emerald-600 hover:bg-emerald-500 text-white font-medium py-2.5 rounded-xl transition shadow-lg shadow-emerald-500/20 text-xs">Approve with Bond</button>
+                <button onclick="resolveHitl(false)" class="flex-1 bg-red-600 hover:bg-red-500 text-white font-medium py-2.5 rounded-xl transition shadow-lg shadow-red-500/20 text-xs">Reject Application</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="toast-container" class="fixed bottom-4 right-4 z-50 flex flex-col space-y-2"></div>
+
+    <script type="text/plain" id="server-code">
+"""Loan desk MCP server: the four agent tools in one file.
+
+Install:  pip install "mcp[cli]<2"
+Run:      mcp dev server.py
+All data is fake and for demonstration only.
+"""
+from mcp.server.fastmcp import FastMCP
+
+mcp = FastMCP("gambia-loan-demo")
+
+KNOWN_IDS = {
+    "NIN-1988-847291": "TIN-908123-GM",  # Fatou Ceesay
+    "NIN-1994-102938": "TIN-445129-GM",  # Dawda Jallow
+    "NIN-1981-992384": "TIN-112930-GM",  # Lamin Touray
+}
+WATCHLIST = {"example pep person"}  # fake PEP list for the demo
+
+
+@mcp.tool()
+def verify_nin_and_tin(nin: str, tin: str) -> dict:
+    """Agent 1 (KYC): check a National ID and tax number."""
+    ok = KNOWN_IDS.get(nin) == tin
+    return {"status": "MATCH" if ok else "NO_MATCH"}
+
+
+@mcp.tool()
+def query_interbank_defaults(nin: str, debt: float, income: float) -> dict:
+    """Agent 2 (Credit): debt-to-income ratio and a risk label."""
+    if income <= 0:
+        return {"nin": nin, "error": "income must be greater than zero"}
+    ratio = debt / income
+    if ratio < 0.25:
+        risk = "LOW_RISK"
+    elif ratio < 0.55:
+        risk = "MEDIUM_RISK"
+    else:
+        risk = "HIGH_RISK"
+    return {"nin": nin, "debt_to_income": round(ratio, 2), "risk": risk}
+
+
+@mcp.tool()
+def assess_land_deed(asset_id: str) -> dict:
+    """Agent 3 (Collateral): is there valid collateral on file?"""
+    valid = "unsecured" not in asset_id.lower()
+    return {"deed_valid": valid}
+
+
+@mcp.tool()
+def screen_pep_and_sanctions(name: str) -> dict:
+    """Agent 4 (AML): screen a name against the demo watchlist."""
+    hit = name.strip().lower() in WATCHLIST
+    return {"pep": hit, "status": "FLAGGED" if hit else "CLEARED"}
+
+
+if __name__ == "__main__":
+    mcp.run()  # stdio by default
+</script>
+
+    <script>
+        const icons = () => { if (window.lucide) lucide.createIcons(); };
+        icons();
+
+        // ---------- Data ----------
+        let applicants = [
+            { id: 'app-1', name: 'Fatou Ceesay', nin: 'NIN-1988-847291', tin: 'TIN-908123-GM', location: 'Brikama', business: 'Solar Energy & Agribusiness', amount: 350000, income: 850000, debt: 45000, collateral: 'Land Title Deed - Kombo North (Valued 650k GMD)', preset: true },
+            { id: 'app-2', name: 'Dawda Jallow', nin: 'NIN-1994-102938', tin: 'TIN-445129-GM', location: 'Serrekunda', business: 'Electronics Import', amount: 600000, income: 920000, debt: 380000, collateral: 'Commercial Fleet Inventory (Valued 400k GMD)', preset: true },
+            { id: 'app-3', name: 'Lamin Touray', nin: 'NIN-1981-992384', tin: 'TIN-112930-GM', location: 'Bakau', business: 'Seafood Cold Storage', amount: 850000, income: 400000, debt: 650000, collateral: 'Unsecured / Cashflow Only', preset: true }
+        ];
+
+        let selectedApplicantId = 'app-1';
+        let isExecuting = false;
+        let runId = 0;                 // incremented on every run and on reset, so stale runs stop
+        let currentCurrency = 'GMD';
+        const fxRates = { GMD: 1, USD: 0.0146, EUR: 0.0135 };   // approximate, display only
+        let lastPayloadLogs = {};
+        let hitlResolver = null;
+        let lastRun = null;            // { app, risk, ctx } used to re-render after a currency change
+        let lastRecord = null;         // audit record for export
+
+        // Same demo rules as the workshop server: under 25% low, under 55% medium, else high
+        function dtiOf(app) { return app.debt / (app.income || 1); }
+        function riskFromDti(d) { return d < 0.25 ? 'LOW_RISK' : (d < 0.55 ? 'MEDIUM_RISK' : 'HIGH_RISK'); }
+
+        function esc(str) { return String(str).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;"); }
+        function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
+        function pct(d) { return (d * 100).toFixed(0) + '%'; }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            renderApplicantList();
+            selectApplicant('app-1');
+        });
+
+        // ---------- Tabs ----------
+        function switchTab(tabName) {
+            ['applicants', 'add-applicant', 'mcp-tools'].forEach(t => {
+                document.getElementById(`view-${t}`).classList.add('hidden');
+                document.getElementById(`tab-btn-${t}`).className = "flex-1 py-2 px-3 rounded-lg font-medium transition flex items-center justify-center space-x-2 text-slate-400 hover:text-white hover:bg-slate-800/50";
+            });
+            document.getElementById(`view-${tabName}`).classList.remove('hidden');
+            document.getElementById(`tab-btn-${tabName}`).className = "flex-1 py-2 px-3 rounded-lg font-medium transition flex items-center justify-center space-x-2 bg-slate-800 text-white shadow";
+        }
+
+        function switchResultTab(tabName) {
+            ['decision', 'mcp-logs', 'security', 'server'].forEach(t => {
+                document.getElementById(`panel-${t}`).classList.add('hidden');
+                document.getElementById(`view-tab-${t}`).className = "text-xs px-3 py-1.5 rounded-md font-medium text-slate-400 hover:text-white hover:bg-slate-800/50 flex items-center space-x-1.5 transition";
+            });
+            document.getElementById(`panel-${tabName}`).classList.remove('hidden');
+            document.getElementById(`view-tab-${tabName}`).className = "text-xs px-3 py-1.5 rounded-md font-medium bg-slate-800 text-white flex items-center space-x-1.5 transition";
+        }
+
+        // ---------- Currency ----------
+        function changeCurrency(curr) {
+            currentCurrency = curr;
+            renderApplicantList();
+            const sel = applicants.find(a => a.id === selectedApplicantId);
+            if (sel) renderSelectedDetails(sel);
+            // Re-render the SAME decision that was reached, not a fresh one
+            if (lastRun && !document.getElementById('decision-results').classList.contains('hidden')) {
+                renderFinalDecision(lastRun.app, lastRun.risk, lastRun.ctx, true);
+            }
+        }
+
+        function formatMoney(amountGMD) {
+            const converted = amountGMD * fxRates[currentCurrency];
+            const formatted = new Intl.NumberFormat('en-US', { maximumFractionDigits: 0 }).format(converted);
+            if (currentCurrency === 'USD') return `$${formatted}`;
+            if (currentCurrency === 'EUR') return `€${formatted}`;
+            return `${formatted} GMD`;
+        }
+
+        // ---------- Applicants ----------
+        function renderApplicantList() {
+            const container = document.getElementById('preset-list');
+            document.getElementById('applicant-count-badge').textContent = `${applicants.length} Applicants`;
+            container.innerHTML = applicants.map(app => `
+                <div onclick="selectApplicant('${app.id}')" class="p-3.5 rounded-xl border cursor-pointer transition flex items-center justify-between ${app.id === selectedApplicantId ? 'bg-blue-950/40 border-gdg-blue/80 shadow-lg' : 'bg-slate-900 border-slate-800 hover:border-slate-700'}">
+                    <div class="space-y-1">
+                        <div class="flex items-center space-x-2">
+                            <span class="font-semibold text-xs text-slate-200">${esc(app.name)}</span>
+                            ${app.preset ? '<span class="text-[9px] bg-slate-800 text-slate-400 px-1.5 rounded">Preset</span>' : '<span class="text-[9px] bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 px-1.5 rounded">Custom</span>'}
+                        </div>
+                        <div class="text-[11px] text-slate-400 flex items-center space-x-2">
+                            <span>${esc(app.business)}</span><span>•</span>
+                            <span class="text-amber-400 font-mono font-medium">${formatMoney(app.amount)}</span>
+                        </div>
+                    </div>
+                    <i data-lucide="chevron-right" class="w-4 h-4 ${app.id === selectedApplicantId ? 'text-gdg-blue' : 'text-slate-600'}"></i>
+                </div>
+            `).join('');
+            icons();
+        }
+
+        function renderSelectedDetails(app) {
+            document.getElementById('selected-details').innerHTML = `
+                <div class="grid grid-cols-2 gap-2 text-[11px]">
+                    <div><span class="text-slate-500">Name:</span><div class="text-slate-200 font-medium">${esc(app.name)}</div></div>
+                    <div><span class="text-slate-500">NIN:</span><div class="font-mono text-slate-300">${esc(app.nin)}</div></div>
+                    <div><span class="text-slate-500">Requested loan:</span><div class="font-mono text-amber-400 font-bold">${formatMoney(app.amount)}</div></div>
+                    <div><span class="text-slate-500">Annual cashflow:</span><div class="font-mono text-emerald-400">${formatMoney(app.income)}</div></div>
+                    <div><span class="text-slate-500">Existing debt:</span><div class="font-mono text-slate-300">${formatMoney(app.debt)}</div></div>
+                    <div><span class="text-slate-500">Debt-to-income:</span><div class="font-mono text-slate-300">${pct(dtiOf(app))}</div></div>
+                    <div class="col-span-2"><span class="text-slate-500">Location / sector:</span><div class="text-slate-300">${esc(app.location)} (${esc(app.business)})</div></div>
+                </div>`;
+        }
+
+        function selectApplicant(id) {
+            if (isExecuting) return;
+            selectedApplicantId = id;
+            renderApplicantList();
+            const app = applicants.find(a => a.id === id);
+            if (app) renderSelectedDetails(app);
+        }
+
+        function handleCustomApplicantSubmit(e) {
+            e.preventDefault();
+            if (isExecuting) { showToast('Wait for the current evaluation to finish.', 'info'); return; }
+            const newApp = {
+                id: 'app-custom-' + Date.now(),
+                name: document.getElementById('app-name').value.trim(),
+                nin: document.getElementById('app-nin').value.trim(),
+                tin: 'TIN-' + Math.floor(100000 + Math.random() * 900000) + '-GM',
+                location: document.getElementById('app-location').value,
+                business: document.getElementById('app-business').value.trim(),
+                amount: parseFloat(document.getElementById('app-amount').value),
+                income: parseFloat(document.getElementById('app-income').value),
+                debt: parseFloat(document.getElementById('app-debt').value),
+                collateral: document.getElementById('app-collateral-type').value,
+                preset: false
+            };
+            applicants.unshift(newApp);
+            document.getElementById('add-applicant-form').reset();
+            showToast(`Custom applicant "${newApp.name}" saved`, 'success');
+            switchTab('applicants');
+            selectApplicant(newApp.id);
+            setTimeout(() => startMcpPipeline(), 300);
+        }
+
+        // ---------- Pipeline ----------
+        async function startMcpPipeline() {
+            if (isExecuting) return;
+            const app = applicants.find(a => a.id === selectedApplicantId);
+            if (!app) return;
+            isExecuting = true;
+            const myRun = ++runId;
+            const stale = () => myRun !== runId;
+
+            const chaosMode = document.getElementById('chaos-select').value;
+            const dti = dtiOf(app);
+            const dtiRisk = riskFromDti(dti);
+            const unsecured = app.collateral.includes('Unsecured');
+            const aml = chaosMode === 'fraud_giaba';
+            const fallback = chaosMode === 'timeout_cbg';
+            const record = { event: 'DevFest Banjul 2026 demo run', simulated: true, applicant: app.name, nin: app.nin, chaos_mode: chaosMode, started: new Date().toISOString(), steps: [] };
+
+            resetAgentNodes();
+            document.getElementById('decision-placeholder').classList.add('hidden');
+            document.getElementById('decision-results').classList.add('hidden');
+            document.getElementById('run-pipeline-btn').disabled = true;
+            updatePipelineStatus('RUNNING', 'Running agent swarm...');
+            logMCP(`--> Orchestrator: evaluating ${app.name} (${app.nin})`);
+
+            const call = (key, tool, args) => {
+                lastPayloadLogs[key] = { tool, args };
+                logMCP(`--> tools/call ${tool} ${JSON.stringify(args)}`);
+                record.steps.push({ tool, args });
+            };
+
+            try {
+                // Agent 1: KYC
+                setAgentActive('kyc');
+                call('kyc', 'verify_nin_and_tin', { nin: app.nin, tin: app.tin });
+                await sleep(700); if (stale()) return;
+                setAgentComplete('kyc', 'VERIFIED');
+                logMCP(`<-- {"status": "MATCH"}`);
+
+                // Agent 2: Credit
+                setAgentActive('credit');
+                call('credit', 'query_interbank_defaults', { nin: app.nin, debt: app.debt, income: app.income });
+                await sleep(900); if (stale()) return;
+                if (fallback) {
+                    setAgentComplete('credit', 'TIMEOUT / FALLBACK', 'amber');
+                    logMCP(`<-- ERROR: CBG bureau timeout (504). Falling back to mobile-money data.`);
+                } else {
+                    setAgentComplete('credit', 'OK');
+                    logMCP(`<-- {"debt_to_income": ${dti.toFixed(2)}, "risk": "${dtiRisk}"}`);
+                }
+
+                // Agent 3: Collateral
+                setAgentActive('collateral');
+                call('collateral', 'assess_land_deed', { asset_id: app.collateral });
+                await sleep(800); if (stale()) return;
+                setAgentComplete('collateral', unsecured ? 'NONE' : 'VERIFIED', unsecured ? 'amber' : undefined);
+                logMCP(`<-- {"deed_valid": ${!unsecured}}`);
+
+                // Agent 4: AML
+                setAgentActive('fraud');
+                call('fraud', 'screen_pep_and_sanctions', { name: app.name });
+                await sleep(800); if (stale()) return;
+                if (aml) {
+                    setAgentComplete('fraud', 'FLAGGED_PEP', 'red');
+                    logMCP(`<-- ALERT: {"pep": true, "list": "watchlist (simulated)"}`);
+                } else {
+                    setAgentComplete('fraud', 'CLEAR');
+                    logMCP(`<-- {"pep": false, "status": "CLEARED"}`);
+                }
+
+                // Decision logic
+                let finalRisk = aml ? 'HIGH_RISK' : dtiRisk;
+                let humanRejected = false;
+
+                if (finalRisk === 'MEDIUM_RISK') {
+                    updatePipelineStatus('HITL', 'Waiting for underwriter');
+                    logMCP(`[Orchestrator] Medium risk. Pausing for human sign-off.`);
+                    const approved = await promptHitl(app, dti);
+                    if (stale()) return;
+                    if (!approved) {
+                        finalRisk = 'HIGH_RISK';
+                        humanRejected = true;
+                        logMCP(`[HITL] Underwriter rejected the application.`);
+                    } else {
+                        logMCP(`[HITL] Underwriter approved with a security bond.`);
+                    }
+                    record.human_decision = approved ? 'approved_with_bond' : 'rejected';
+                }
+
+                await sleep(500); if (stale()) return;
+                updatePipelineStatus('COMPLETE', 'Evaluation finished');
+                const ctx = { dti, dtiRisk, aml, fallback, humanRejected, unsecured };
+                renderFinalDecision(app, finalRisk, ctx, false);
+                lastRun = { app, risk: finalRisk, ctx };
+
+                record.decision = finalRisk;
+                record.finished = new Date().toISOString();
+                record.console = Array.from(document.querySelectorAll('#mcp-terminal-output div')).map(d => d.textContent);
+                sealRecord(record);
+                showToast('Evaluation complete', 'success');
+            } finally {
+                if (!stale()) {
+                    isExecuting = false;
+                    document.getElementById('run-pipeline-btn').disabled = false;
+                }
+            }
+        }
+
+        function promptHitl(app, dti) {
+            return new Promise((resolve) => {
+                document.getElementById('hitl-app-name').textContent = app.name;
+                document.getElementById('hitl-app-amount').textContent = formatMoney(app.amount);
+                document.getElementById('hitl-app-dti').textContent = pct(dti);
+                document.getElementById('hitl-modal').classList.remove('hidden');
+                hitlResolver = resolve;
+            });
+        }
+
+        function resolveHitl(approved) {
+            document.getElementById('hitl-modal').classList.add('hidden');
+            if (hitlResolver) { const r = hitlResolver; hitlResolver = null; r(approved); }
+        }
+
+        // ---------- Decision rendering ----------
+        function setBadge(id, text, tone) {
+            const tones = { green: 'bg-emerald-500/20 text-emerald-300', amber: 'bg-amber-500/20 text-amber-300', red: 'bg-red-500/20 text-red-300' };
+            const el = document.getElementById(id);
+            el.className = `text-[10px] font-mono px-2 py-0.5 rounded ${tones[tone]}`;
+            el.textContent = text;
+        }
+
+        function renderFinalDecision(app, risk, ctx) {
+            document.getElementById('decision-placeholder').classList.add('hidden');
+            document.getElementById('decision-results').classList.remove('hidden');
+
+            const banner = document.getElementById('decision-banner');
+            const iconWrapper = document.getElementById('decision-icon-wrapper');
+            const title = document.getElementById('decision-title');
+            const riskTag = document.getElementById('decision-risk-tag');
+            const subtitle = document.getElementById('decision-subtitle');
+            const capAmount = document.getElementById('decision-recommended-amount');
+            const plain = document.getElementById('plain-summary-text');
+            const synthesis = document.getElementById('res-synthesis-text');
+
+            if (risk === 'LOW_RISK') {
+                banner.className = "p-4 rounded-xl border border-emerald-500/40 bg-emerald-950/20 text-emerald-200 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4";
+                iconWrapper.className = "w-12 h-12 rounded-xl flex items-center justify-center shrink-0 bg-emerald-500/20 text-emerald-400";
+                iconWrapper.innerHTML = `<i data-lucide="check-circle-2" class="w-6 h-6"></i>`;
+                title.textContent = "RECOMMENDATION: FULL APPROVAL";
+                riskTag.className = "text-xs px-2.5 py-0.5 rounded-full font-mono bg-emerald-500/30 text-emerald-300 border border-emerald-500/40";
+                riskTag.textContent = "Low Risk";
+                subtitle.textContent = ctx.unsecured ? "Healthy cashflow and low debt-to-income." : "Verified identity, collateral on file, and healthy cashflow.";
+                capAmount.textContent = formatMoney(app.amount);
+                plain.textContent = "Approved for the full amount.";
+                synthesis.textContent = `All four checks passed for ${app.name}. Debt-to-income is ${pct(ctx.dti)}, under the 25% limit. Full disbursement recommended.`;
+            } else if (risk === 'MEDIUM_RISK') {
+                banner.className = "p-4 rounded-xl border border-amber-500/40 bg-amber-950/20 text-amber-200 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4";
+                iconWrapper.className = "w-12 h-12 rounded-xl flex items-center justify-center shrink-0 bg-amber-500/20 text-amber-400";
+                iconWrapper.innerHTML = `<i data-lucide="alert-triangle" class="w-6 h-6"></i>`;
+                title.textContent = "CONDITIONAL APPROVAL";
+                riskTag.className = "text-xs px-2.5 py-0.5 rounded-full font-mono bg-amber-500/30 text-amber-300 border border-amber-500/40";
+                riskTag.textContent = "Medium Risk";
+                subtitle.textContent = "Approved by a human underwriter with a bond.";
+                capAmount.textContent = formatMoney(app.amount * 0.75);
+                plain.textContent = "Approved for 75% of the amount, with a bond.";
+                synthesis.textContent = `Debt-to-income is ${pct(ctx.dti)}, between the 25% and 55% limits. The underwriter approved, and the loan is capped at 75% of the requested amount.`;
+            } else {
+                banner.className = "p-4 rounded-xl border border-red-500/40 bg-red-950/20 text-red-200 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4";
+                iconWrapper.className = "w-12 h-12 rounded-xl flex items-center justify-center shrink-0 bg-red-500/20 text-red-400";
+                iconWrapper.innerHTML = `<i data-lucide="x-circle" class="w-6 h-6"></i>`;
+                title.textContent = "RECOMMENDATION: REJECTED";
+                riskTag.className = "text-xs px-2.5 py-0.5 rounded-full font-mono bg-red-500/30 text-red-300 border border-red-500/40";
+                riskTag.textContent = ctx.aml ? "Compliance Flag" : "High Risk";
+                subtitle.textContent = ctx.aml ? "AML screening returned a potential watchlist match." : (ctx.humanRejected ? "The underwriter declined the conditional approval." : "Debt-to-income is above the policy limit.");
+                capAmount.textContent = formatMoney(0);
+                plain.textContent = "Not approved.";
+                synthesis.textContent = ctx.aml
+                    ? `The AML agent flagged ${app.name} as a potential PEP match, so the application is blocked pending compliance review.`
+                    : (ctx.humanRejected ? `Debt-to-income is ${pct(ctx.dti)} and the underwriter chose to reject.` : `Debt-to-income is ${pct(ctx.dti)}, above the 55% limit. The application is declined.`);
+            }
+
+            // Identity
+            setBadge('res-kyc-status', 'VERIFIED', 'green');
+            document.getElementById('res-kyc-desc').textContent = "National ID and tax number matched (simulated registry).";
+
+            // Credit
+            if (ctx.fallback) {
+                setBadge('res-credit-status', 'FALLBACK', 'amber');
+                document.getElementById('res-credit-desc').textContent = "Credit bureau timed out. Used mobile-money data instead.";
+            } else {
+                const tone = ctx.dtiRisk === 'HIGH_RISK' ? 'red' : (ctx.dtiRisk === 'MEDIUM_RISK' ? 'amber' : 'green');
+                setBadge('res-credit-status', ctx.dtiRisk === 'HIGH_RISK' ? 'OVER-LEVERAGED' : (ctx.dtiRisk === 'MEDIUM_RISK' ? 'ELEVATED' : 'HEALTHY'), tone);
+                document.getElementById('res-credit-desc').textContent = `Existing debt ${formatMoney(app.debt)}, debt-to-income ${pct(ctx.dti)}.`;
+            }
+
+            // Collateral
+            setBadge('res-collateral-status', ctx.unsecured ? 'NONE' : 'CHECKED', ctx.unsecured ? 'amber' : 'green');
+            document.getElementById('res-collateral-desc').textContent = app.collateral;
+
+            // AML (now follows what the agent actually returned)
+            setBadge('res-fraud-status', ctx.aml ? 'FLAGGED' : 'CLEAR', ctx.aml ? 'red' : 'green');
+            document.getElementById('res-fraud-desc').textContent = ctx.aml ? "Potential PEP match on the watchlist (simulated)." : "No PEP or sanctions match.";
+
+            icons();
+            switchResultTab('decision');
+        }
+
+        // ---------- Inspector ----------
+        function openAgentInspector(nodeKey) {
+            const titles = { kyc: 'KYC & Identity Agent', credit: 'Credit Risk Agent', collateral: 'Collateral Assessor Agent', fraud: 'AML & Compliance Agent' };
+            const servers = { kyc: 'mcp-server-gambia-cpr', credit: 'mcp-server-cbg-credit', collateral: 'mcp-server-land-registry', fraud: 'mcp-server-giaba-aml' };
+            const schemas = {
+                kyc: '{"name": "verify_nin_and_tin", "parameters": {"nin": "string", "tin": "string"}}',
+                credit: '{"name": "query_interbank_defaults", "parameters": {"nin": "string", "debt": "number", "income": "number"}}',
+                collateral: '{"name": "assess_land_deed", "parameters": {"asset_id": "string"}}',
+                fraud: '{"name": "screen_pep_and_sanctions", "parameters": {"name": "string"}}'
+            };
+            document.getElementById('modal-agent-title').textContent = titles[nodeKey];
+            document.getElementById('modal-agent-server').textContent = servers[nodeKey];
+            document.getElementById('modal-agent-schema').textContent = schemas[nodeKey];
+            document.getElementById('modal-agent-payload').textContent = JSON.stringify(lastPayloadLogs[nodeKey] || { status: "No call yet. Run an evaluation first." }, null, 2);
+            document.getElementById('agent-inspector-modal').classList.remove('hidden');
+        }
+        function closeAgentInspector() { document.getElementById('agent-inspector-modal').classList.add('hidden'); }
+
+        // ---------- Export ----------
+        async function copyMcpConfig() {
+            const config = { mcpServers: { "gambia-cpr": { command: "python", args: ["/path/to/mcp/server.py"] } } };
+            try {
+                await navigator.clipboard.writeText(JSON.stringify(config, null, 2));
+                showToast('Copied example MCP config', 'success');
+            } catch (e) {
+                showToast('Could not access the clipboard in this browser', 'info');
+            }
+        }
+
+        async function sha256Hex(text) {
+            const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(text));
+            return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2, '0')).join('');
+        }
+
+        async function sealRecord(record) {
+            const el = document.getElementById('audit-sha-hash');
+            try {
+                record.sha256 = await sha256Hex(JSON.stringify(record));
+                el.textContent = record.sha256;
+            } catch (e) {
+                record.sha256 = null;
+                el.textContent = 'hash unavailable in this browser context';
+            }
+            lastRecord = record;
+        }
+
+        function downloadAuditRecord() {
+            if (!lastRecord) { showToast('Run an evaluation first', 'info'); return; }
+            const blob = new Blob([JSON.stringify(lastRecord, null, 2)], { type: 'application/json' });
+            const a = document.createElement('a');
+            a.href = URL.createObjectURL(blob);
+            a.download = 'mcp_loan_demo_audit_record.json';
+            document.body.appendChild(a);
+            a.click();
+            a.remove();
+            setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+            showToast('Demo audit record downloaded', 'success');
+        }
+
+        // ---------- Agent node helpers ----------
+        function setAgentActive(key) {
+            const el = document.getElementById(`agent-status-${key}`);
+            el.className = "text-[10px] px-2 py-0.5 rounded-full bg-blue-500/20 text-blue-300 font-mono animate-pulse";
+            el.textContent = "Running...";
+        }
+        function setAgentComplete(key, text, tone) {
+            const tones = { amber: 'bg-amber-500/20 text-amber-300', red: 'bg-red-500/20 text-red-300' };
+            const el = document.getElementById(`agent-status-${key}`);
+            el.className = `text-[10px] px-2 py-0.5 rounded-full font-mono ${tones[tone] || 'bg-emerald-500/20 text-emerald-300'}`;
+            el.textContent = text;
+            document.getElementById(`agent-time-${key}`).textContent = `${Math.floor(60 + Math.random() * 80)}ms`;
+        }
+        function resetAgentNodes() {
+            ['kyc', 'credit', 'collateral', 'fraud'].forEach(k => {
+                document.getElementById(`agent-status-${k}`).className = "text-[10px] px-2 py-0.5 rounded-full bg-slate-800 text-slate-400 font-mono";
+                document.getElementById(`agent-status-${k}`).textContent = "Standby";
+                document.getElementById(`agent-time-${k}`).textContent = "--";
+            });
+        }
+        function updatePipelineStatus(state, text) {
+            const dot = document.getElementById('status-indicator-dot');
+            dot.className = state === 'RUNNING' ? "w-2 h-2 rounded-full bg-amber-400 animate-ping" : (state === 'HITL' ? "w-2 h-2 rounded-full bg-amber-400" : (state === 'IDLE' ? "w-2 h-2 rounded-full bg-slate-500" : "w-2 h-2 rounded-full bg-emerald-400"));
+            document.getElementById('status-text').textContent = `Status: ${text}`;
+        }
+
+        // ---------- Console ----------
+        function logMCP(msg) {
+            const terminal = document.getElementById('mcp-terminal-output');
+            const time = new Date().toISOString().split('T')[1].slice(0, 8);
+            const line = document.createElement('div');
+            line.innerHTML = `<span class="text-slate-500">[${time}]</span> <span class="text-slate-300">${esc(msg)}</span>`;
+            terminal.appendChild(line);
+            terminal.scrollTop = terminal.scrollHeight;
+        }
+        function clearConsoleLogs() {
+            document.getElementById('mcp-terminal-output').innerHTML = '<div class="text-slate-600">// Cleared</div>';
+        }
+
+        // ---------- Reset ----------
+        function resetDemo() {
+            runId++;                       // cancels any run in progress
+            isExecuting = false;
+            document.getElementById('run-pipeline-btn').disabled = false;
+            document.getElementById('hitl-modal').classList.add('hidden');
+            if (hitlResolver) { const r = hitlResolver; hitlResolver = null; r(false); }
+            resetAgentNodes();
+            updatePipelineStatus('IDLE', 'IDLE');
+            document.getElementById('decision-placeholder').classList.remove('hidden');
+            document.getElementById('decision-results').classList.add('hidden');
+            lastRun = null;
+            clearConsoleLogs();
+            selectApplicant('app-1');
+            showToast('Demo reset', 'info');
+        }
+
+
+        // ---------- server.py viewer ----------
+        function getServerCode() { return document.getElementById('server-code').textContent.replace(/^\n/, ''); }
+        async function copyServerCode() {
+            try { await navigator.clipboard.writeText(getServerCode()); showToast('Copied server.py', 'success'); }
+            catch (e) { showToast('Could not access the clipboard in this browser', 'info'); }
+        }
+        function downloadServerCode() {
+            const blob = new Blob([getServerCode()], { type: 'text/x-python' });
+            const a = document.createElement('a');
+            a.href = URL.createObjectURL(blob);
+            a.download = 'server.py';
+            document.body.appendChild(a); a.click(); a.remove();
+            setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+            showToast('Downloaded server.py', 'success');
+        }
+        document.addEventListener('DOMContentLoaded', () => { document.getElementById('server-code-view').textContent = getServerCode(); });
+
+        // ---------- Toast ----------
+        function showToast(msg, type = 'info') {
+            const container = document.getElementById('toast-container');
+            const toast = document.createElement('div');
+            toast.className = 'p-3 rounded-xl border bg-slate-900 border-slate-700 text-slate-200 shadow-2xl text-xs flex items-center space-x-2';
+            toast.innerHTML = `<i data-lucide="info" class="w-4 h-4 text-gdg-blue"></i><span>${esc(msg)}</span>`;
+            container.appendChild(toast);
+            icons();
+            setTimeout(() => toast.remove(), 3000);
+        }
+    </script>
+</body>
+</html>
